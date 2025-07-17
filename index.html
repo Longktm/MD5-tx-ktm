@@ -1,0 +1,51 @@
+<!DOCTYPE html><html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>TX Hacker MD5 Tool</title>
+  <style>
+    body { font-family: Arial; padding: 20px; background: #f5f5f5; }
+    textarea { width: 100%; height: 200px; margin-top: 10px; font-family: monospace; }
+    button { margin-top: 10px; padding: 10px 20px; font-size: 16px; }
+    .result { margin-top: 20px; padding: 10px; background: #fff; border-radius: 5px; box-shadow: 0 0 5px rgba(0,0,0,0.1); }
+  </style>
+</head>
+<body>
+  <h1>🔐 TX Hacker – Phân tích MD5 Tài Xỉu</h1>
+  <p>Nhập chuỗi MD5 và kết quả thực tế (Tài/Xỉu), mỗi dòng dạng:</p>
+  <code>6c3e2c514de0c1b7|Tài</code>
+  <textarea id="input"></textarea>
+  <button onclick="phanTich()">Phân tích</button>  <div class="result" id="output"></div>  <script>
+    function phanTich() {
+      const input = document.getElementById("input").value.trim();
+      const lines = input.split("\n");
+      const stats = { T: 0, X: 0, startChar: {}, endChar: {} };
+
+      lines.forEach(line => {
+        const [hash, result] = line.trim().split("|");
+        if (!hash || !result) return;
+        const first = hash[0];
+        const last = hash[hash.length - 1];
+
+        // Đếm tổng
+        if (result.includes("Tài")) stats.T++;
+        else if (result.includes("Xỉu")) stats.X++;
+
+        // Đếm theo ký tự đầu/cuối
+        stats.startChar[first] = stats.startChar[first] + 1 || 1;
+        stats.endChar[last] = stats.endChar[last] + 1 || 1;
+      });
+
+      // Hiển thị
+      const out = document.getElementById("output");
+      out.innerHTML = `
+        <h3>Kết quả tổng:</h3>
+        <p>Tài: <b>${stats.T}</b> | Xỉu: <b>${stats.X}</b></p>
+        <h4>Ký tự đầu chuỗi:</h4>
+        <pre>${JSON.stringify(stats.startChar, null, 2)}</pre><h4>Ký tự cuối chuỗi:</h4>
+    <pre>${JSON.stringify(stats.endChar, null, 2)}</pre>
+  `;
+}
+
+  </script>
+</body>
+</html>
