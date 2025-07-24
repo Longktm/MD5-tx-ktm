@@ -1,96 +1,102 @@
-<!DOCTYPE html>
-<html lang="vi">
+<!DOCTYPE html><html lang="vi">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
   <title>Phân tích MD5 Tài/Xỉu</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; background: #f8f9fa; }
-    textarea { width: 100%; height: 100px; margin-bottom: 10px; font-family: monospace; }
-    button { margin-right: 10px; padding: 10px 20px; }
-    #result { margin-top: 20px; font-weight: bold; font-size: 18px; }
-    .suggestion { font-size: 24px; margin: 10px 0; }
-    table { width: 100%; margin-top: 20px; border-collapse: collapse; }
-    th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+    body { font-family: Arial; padding: 20px; }
+    table, th, td { border: 1px solid black; border-collapse: collapse; padding: 5px; }
+    th { background-color: #f2f2f2; }
+    input[type='text'] { width: 400px; }
+    .suggest { font-weight: bold; }
+    .corrected { color: green; }
+    .wrong { color: red; }
   </style>
 </head>
 <body>
-  <h2>Phân tích MD5 Tài/Xỉu</h2>
-  <textarea id="md5Input" placeholder="Nhập mã MD5..."></textarea><br>
-  <button onclick="analyze()">Phân tích</button>
-  <div id="result"></div>
-  <div class="suggestion" id="suggestion"></div>
-  <button onclick="saveResult('tài')">Lưu là TÀI</button>
-  <button onclick="saveResult('xỉu')">Lưu là XỈU</button>
+  <h2>Phân tích mã MD5 Tài/Xỉu</h2>
+  <input type="text" id="md5Input" placeholder="Dán mã MD5 vào đây">
+  <button onclick="analyzeMD5()">Phân tích</button>
+  <p id="result"></p>  <h3>Lịch sử đã lưu</h3>
+  <table id="history">
+    <tr>
+      <th>MD5</th><th>F</th><th>D</th><th>Cuối</th><th>Gợi ý</th><th>Đã sửa</th>
+    </tr>
+  </table>  <script>
+    let data = JSON.parse(localStorage.getItem('md5Data') || '[]');
+    let trainingData = JSON.parse(localStorage.getItem('trainingStats') || '{}');
 
-  <h3>Lịch sử đã lưu</h3>
-  <table id="historyTable">
-    <thead>
-      <tr><th>MD5</th><th>F</th><th>D</th><th>Cuối</th><th>Gợi ý</th><th>Đã sửa</th></tr>
-    </thead>
-    <tbody id="historyBody"></tbody>
-  </table>
-
-  <script>
-    const fCount = str => (str.match(/f/g) || []).length;
-    const dCount = str => (str.match(/d/g) || []).length;
-
-    function analyze() {
-      const md5 = document.getElementById("md5Input").value.trim().toLowerCase();
-      if (!md5 || md5.length !== 32) {
-        alert("Mã MD5 không hợp lệ (phải 32 ký tự hex).");
-        return;
+    function countFD(md5) {
+      let f = 0, d = 0;
+      for (let c of md5) {
+        if (c >= 'a' && c <= 'f') f++;
+        else if (c >= '0' && c <= '9') d++;
       }
-
-      const f = fCount(md5);
-      const d = dCount(md5);
-      const last = md5.slice(-1);
-      let suggest = (f + d) % 2 === 0 ? "tài" : "xỉu";
-
-      document.getElementById("result").innerText =
-        `Số 'f': ${f}, số 'd': ${d}, ký tự cuối: '${last}'`;
-      document.getElementById("suggestion").innerText =
-        `👉 Gợi ý: ${suggest.toUpperCase()}`;
+      return [f, d];
     }
 
-    function saveResult(correctResult) {
-      const md5 = document.getElementById("md5Input").value.trim().toLowerCase();
-      if (!md5 || md5.length !== 32) {
-        alert("Mã MD5 không hợp lệ.");
-        return;
-      }
-
-      const f = fCount(md5);
-      const d = dCount(md5);
-      const last = md5.slice(-1);
-      const suggest = (f + d) % 2 === 0 ? "tài" : "xỉu";
-      const corrected = suggest !== correctResult;
-
-      let history = JSON.parse(localStorage.getItem("history") || "[]");
-      history.push({ md5, f, d, last, suggest, corrected, result: correctResult });
-      localStorage.setItem("history", JSON.stringify(history));
-      updateTable();
-      document.getElementById("md5Input").value = "";
+    function suggestByStats(f, d, lastChar) {
+      const key = `${f}-${d}-${lastChar}`;
+      const stats = trainingData[key];
+      if (!stats) return null;
+      return stats.tai > stats.xiu ? 'tài' : 'xỉu';
     }
 
-    function updateTable() {
-      const history = JSON.parse(localStorage.getItem("history") || "[]");
-      const tbody = document.getElementById("historyBody");
-      tbody.innerHTML = "";
-      history.slice(-30).reverse().forEach(item => {
-        const row = `<tr>
+    function defaultSuggest(f, d, lastChar) {
+      const num = parseInt(lastChar, 16);
+      return (f + d + num) % 2 === 0 ? 'tài' : 'xỉu';
+    }
+
+    function analyzeMD5() {
+      const md5 = document.getElementById("md5Input").value.trim().toLowerCase();
+      if (md5.length !== 32 && md5.length !== 64) return alert("Mã MD5 không hợp lệ");
+      const [f, d] = countFD(md5);
+      const lastChar = md5[md5.length - 1];
+
+      let suggestion = suggestByStats(f, d, lastChar) || defaultSuggest(f, d, lastChar);
+
+      document.getElementById("result").innerHTML =
+        `F = ${f}, D = ${d}, Cuối = ${lastChar} ⇒ <span class='suggest'>${suggestion}</span>`;
+
+      data.push({ md5, f, d, last: lastChar, suggest: suggestion, corrected: false });
+      localStorage.setItem('md5Data', JSON.stringify(data));
+      renderTable();
+    }
+
+    function renderTable() {
+      const table = document.getElementById("history");
+      table.innerHTML = `<tr><th>MD5</th><th>F</th><th>D</th><th>Cuối</th><th>Gợi ý</th><th>Đã sửa</th></tr>`;
+      data.forEach((item, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
           <td>${item.md5}</td>
           <td>${item.f}</td>
           <td>${item.d}</td>
           <td>${item.last}</td>
           <td>${item.suggest}</td>
-          <td>${item.corrected ? "✅" : "❌"}</td>
-        </tr>`;
-        tbody.innerHTML += row;
+          <td><input type="checkbox" ${item.corrected ? 'checked' : ''} onchange="correct(${index}, this.checked)"></td>
+        `;
+        table.appendChild(row);
       });
     }
 
-    updateTable();
-  </script>
-</body>
+    function correct(index, isCorrect) {
+      data[index].corrected = isCorrect;
+      const key = `${data[index].f}-${data[index].d}-${data[index].last}`;
+
+      if (!trainingData[key]) trainingData[key] = { tai: 0, xiu: 0 };
+      const suggest = data[index].suggest;
+
+      if (isCorrect) {
+        trainingData[key][suggest]++;
+      } else {
+        trainingData[key][suggest] = Math.max(0, trainingData[key][suggest] - 1);
+      }
+
+      localStorage.setItem('md5Data', JSON.stringify(data));
+      localStorage.setItem('trainingStats', JSON.stringify(trainingData));
+      renderTable();
+    }
+
+    renderTable();
+  </script></body>
 </html>
