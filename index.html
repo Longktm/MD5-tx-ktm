@@ -1,102 +1,148 @@
-<!DOCTYPE html><html lang="vi">
+<!DOCTYPE html>
+<html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dự đoán Tài/Xỉu từ MD5</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MD5 Tài Xỉu Analyzer</title>
   <style>
-    body { font-family: Arial; padding: 20px; background: #f4f4f4; }
-    textarea, input, button { padding: 10px; font-size: 16px; margin-top: 10px; width: 100%; }
-    .result { margin-top: 20px; font-weight: bold; }
-    .history { margin-top: 30px; background: white; padding: 10px; border-radius: 8px; }
-    .history-item { border-bottom: 1px solid #ccc; padding: 5px 0; }
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    textarea, input, button {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 16px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: white;
+    }
+    th, td {
+      padding: 8px;
+      border: 1px solid #ddd;
+      text-align: center;
+    }
+    th {
+      background: #eee;
+    }
+    .stats {
+      margin-top: 20px;
+      background: white;
+      padding: 15px;
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .btn-clear {
+      background: #e74c3c;
+      color: white;
+    }
+    .btn-analyze {
+      background: #3498db;
+      color: white;
+    }
   </style>
 </head>
 <body>
-  <h2>Phân tích MD5 đoán Tài/Xỉu</h2>
-  <textarea id="md5Input" rows="4" placeholder="Nhập mã MD5, mỗi dòng một mã (vd: e5c6...|tài hoặc chỉ e5c6...) "></textarea>
-  <button onclick="handleSubmit()">Phân tích & Lưu mã</button>
-  <div class="result" id="result"></div>  <div class="history">
-    <h3>Lịch sử đã lưu</h3>
-    <div id="historyList"></div>
-  </div>  <script>
-    // Dữ liệu đã học trước (mã và kết quả thực tế)
-    let dataset = [
-      { md5: "506530a31d8db150c0c11ce6a9427e70", result: "tài" },
-      { md5: "2782645bdd0c8db9848353abe0804117", result: "tài" },
-      { md5: "2acf33061de4c180b1ddb25abbadb968", result: "xỉu" },
-      { md5: "a4a613d7c94c9ee7418016676398a005", result: "tài" },
-      { md5: "8ac81d8c2ca2275cf5ab31ade10176c6", result: "tài" },
-      { md5: "e1d0b832d7944465898ead0c25efe579", result: "xỉu" },
-      { md5: "5aaf09ad6fe983e0ae57112551fd3a7d", result: "tài" },
-      { md5: "6d3cb4d214750e7dbee3c2ee5e8599aa", result: "xỉu" },
-      { md5: "c1c9f9f6042bfea1993d33ecc288f6d6", result: "xỉu" },
-      { md5: "2d0979d6d2aa1cebc76539892d550729", result: "xỉu" },
-      { md5: "6cefb870008a5f9c107ed2836f1ca30c", result: "xỉu" }
-    ];
+  <h1>Phân Tích Chuỗi MD5 Tài Xỉu</h1>
 
-    // Thêm dữ liệu đã lưu trong localStorage nếu có
-    if (localStorage.getItem("md5Data")) {
-      try {
-        dataset = [...dataset, ...JSON.parse(localStorage.getItem("md5Data"))];
-      } catch (e) {
-        console.error("Không đọc được dữ liệu lưu trữ cũ.");
+  <textarea id="md5Input" rows="6" placeholder="Dán chuỗi md5|tài hoặc md5|xỉu mỗi dòng..."></textarea>
+  <button class="btn-analyze" onclick="addData()">Lưu & Phân Tích</button>
+  <button class="btn-clear" onclick="clearData()">🗑 Xóa tất cả dữ liệu</button>
+
+  <div class="stats" id="stats"></div>
+
+  <table id="md5Table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>MD5</th>
+        <th>Kết quả</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    let data = JSON.parse(localStorage.getItem('md5Data')) || [];
+
+    function saveData() {
+      localStorage.setItem('md5Data', JSON.stringify(data));
+    }
+
+    function renderTable() {
+      const tbody = document.querySelector("#md5Table tbody");
+      tbody.innerHTML = "";
+      data.forEach((item, index) => {
+        const row = `<tr>
+          <td>${index + 1}</td>
+          <td>${item.md5}</td>
+          <td>${item.result}</td>
+        </tr>`;
+        tbody.innerHTML += row;
+      });
+    }
+
+    function updateStats() {
+      const total = data.length;
+      const tai = data.filter(i => i.result === "tài").length;
+      const xiu = data.filter(i => i.result === "xỉu").length;
+      const statsDiv = document.getElementById("stats");
+
+      statsDiv.innerHTML = `
+        <strong>Tổng:</strong> ${total} chuỗi |
+        <strong>Tài:</strong> ${tai} (${((tai/total)*100).toFixed(1)}%) |
+        <strong>Xỉu:</strong> ${xiu} (${((xiu/total)*100).toFixed(1)}%)
+      `;
+
+      if (total > 10) {
+        const last5 = data.slice(-5).map(i => i.result).join(", ");
+        statsDiv.innerHTML += `<br><strong>5 kết quả gần nhất:</strong> ${last5}`;
       }
     }
 
-    function countLetters(md5) {
-      const first16 = md5.slice(0, 16).toLowerCase();
-      let counts = { a: 0, b: 0, c: 0, d: 0, e: 0, f: 0 };
-      for (let char of first16) {
-        if (counts.hasOwnProperty(char)) counts[char]++;
-      }
-      return counts;
-    }
-
-    function predict(md5) {
-      const counts = countLetters(md5);
-      // Ví dụ phân tích: nếu tổng a+b+d > c+e+f thì là tài
-      const left = counts.a + counts.b + counts.d;
-      const right = counts.c + counts.e + counts.f;
-      return left >= right ? "tài" : "xỉu";
-    }
-
-    function handleSubmit() {
+    function addData() {
       const input = document.getElementById("md5Input").value.trim();
+      if (!input) return;
+
       const lines = input.split("\n");
-      let results = [];
-      let newEntries = [];
-
       for (let line of lines) {
-        let parts = line.split("|");
-        let md5 = parts[0].trim();
-        let real = parts[1]?.trim();
-        if (md5.length !== 32) continue;
-
-        let guess = predict(md5);
-        results.push(`${md5} → Dự đoán: ${guess}${real ? ", Thực tế: " + real : ""}`);
-
-        // Nếu có thực tế, lưu lại vào localStorage
-        if (real === "tài" || real === "xỉu") {
-          newEntries.push({ md5, result: real });
+        const parts = line.trim().split("|");
+        if (parts.length === 2) {
+          const md5 = parts[0].trim().toLowerCase();
+          const result = parts[1].trim().toLowerCase();
+          if ((result === "tài" || result === "xỉu") && !data.find(d => d.md5 === md5)) {
+            data.push({ md5, result });
+          }
         }
       }
 
-      if (newEntries.length > 0) {
-        let old = JSON.parse(localStorage.getItem("md5Data") || "[]");
-        let combined = [...old, ...newEntries];
-        localStorage.setItem("md5Data", JSON.stringify(combined));
-        updateHistory();
+      saveData();
+      renderTable();
+      updateStats();
+      document.getElementById("md5Input").value = "";
+    }
+
+    function clearData() {
+      if (confirm("Bạn có chắc muốn xóa toàn bộ dữ liệu không?")) {
+        data = [];
+        saveData();
+        renderTable();
+        updateStats();
       }
-
-      document.getElementById("result").innerText = results.join("\n");
     }
 
-    function updateHistory() {
-      let list = document.getElementById("historyList");
-      let stored = JSON.parse(localStorage.getItem("md5Data") || "[]");
-      list.innerHTML = stored.map(x => `<div class='history-item'>${x.md5} → ${x.result}</div>`).join("");
-    }
-
-    updateHistory();
-  </script></body>
-</html> 
+    // Load khi mở web
+    renderTable();
+    updateStats();
+  </script>
+</body>
+</html>
