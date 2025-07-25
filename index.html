@@ -1,135 +1,97 @@
-Tài Xỉu Hacker AI – Phiên bản hoàn hảo nhất
-
-Đây là mã nguồn hoàn chỉnh cho hệ thống phân tích, dự đoán và tự học kết quả tài xỉu từ chuỗi MD5 như một hacker chuyên nghiệp. Mục tiêu là giúp người chơi đạt lợi nhuận bằng cách kết hợp các yếu tố phân tích logic, học máy nhẹ và tương tác thông minh.
-
-Tính năng chính:
-
-Giao diện đơn giản, chữ to dễ thao tác trên điện thoại.
-
-Dán mã MD5 → Tự phân tích theo thuật toán f + d + ký tự cuối cùng.
-
-Tự gợi ý kết quả (Tài/Xỉu) với mức độ chắc chắn.
-
-Có checkbox chọn "Kết quả đúng thực tế" là Tài hay Xỉu → giúp AI tự học.
-
-Khi không chắc chắn, sẽ hiện cảnh báo ⚠️.
-
-Lưu trữ toàn bộ dữ liệu đã nhập để phân tích và học dần theo thời gian.
-
-AI cải thiện độ chính xác dần theo kết quả người dùng sửa lại.
-
-
-
----
-
-Cài đặt sử dụng:
-
-Chỉ cần dán toàn bộ mã HTML dưới đây vào GitHub Pages hoặc chạy file .html trong trình duyệt là dùng được.
-
-<!DOCTYPE html>
-<html lang="vi">
+<!DOCTYPE html><html lang="vi">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hacker Tài Xỉu AI</title>
+  <title>KTM TOOL - THORP AI</title>
   <style>
-    body { font-family: Arial; text-align: center; padding: 10px; font-size: 22px; }
-    input, select, button { font-size: 22px; margin: 10px; padding: 5px; }
-    .warning { color: orange; font-weight: bold; }
-    .result { font-size: 28px; margin: 10px 0; }
-    .correct-check { margin-top: 15px; }
+    body { font-family: monospace; background: black; color: #00FF00; padding: 1rem; font-size: 20px; }
+    input, button, select { font-size: 24px; padding: 8px; margin: 5px; }
+    .block { margin-bottom: 1rem; }
+    .warning { color: yellow; }
+    .result-box { font-size: 32px; margin: 1rem 0; }
+    .history { max-height: 200px; overflow-y: auto; border: 1px solid #00FF00; padding: 10px; }
+    label { display: inline-block; width: 120px; }
   </style>
 </head>
 <body>
-  <h2>Hacker Tài Xỉu AI 🎯</h2>
-
-  <textarea id="md5input" rows="2" cols="40" placeholder="Dán mã MD5 vào đây..."></textarea><br>
-  <button onclick="phanTich()">Phân tích</button>
-  <div class="result" id="ketqua"></div>
-  <div id="canhbao"></div>
-
-  <div class="correct-check">
-    <label>Kết quả thực tế:</label>
-    <input type="radio" name="correct" value="tài"> Tài
-    <input type="radio" name="correct" value="xỉu"> Xỉu
-    <button onclick="luuKetQua()">Lưu kết quả</button>
+  <h1>KTM TOOL - THORP AI</h1>
+  <div class="block">
+    <label for="md5">Mã MD5:</label>
+    <input id="md5" type="text" size="40">
+    <button onclick="analyze()">Phân tích</button>
   </div>
+  <div class="block">
+    <div id="result" class="result-box"></div>
+    <div id="evDisplay"></div>
+  </div>
+  <div class="block">
+    <label>Thực tế:</label>
+    <select id="actual">
+      <option value="">--</option>
+      <option value="tài">Tài</option>
+      <option value="xỉu">Xỉu</option>
+    </select>
+    <button onclick="confirmResult()">Xác nhận kết quả đúng</button>
+  </div>
+  <div class="block history" id="history"></div>  <script>
+    const db = JSON.parse(localStorage.getItem("ktm_data") || "[]")
 
-  <h3>Dữ liệu đã học</h3>
-  <ul id="dulieu"></ul>
-
-<script>
-  let data = JSON.parse(localStorage.getItem('data_md5') || '[]');
-
-  function demFD(md5) {
-    let f = (md5.match(/f/g) || []).length;
-    let d = (md5.match(/d/g) || []).length;
-    return { f, d, last: md5.slice(-1) };
-  }
-
-  function duDoan({f, d, last}) {
-    // Trọng số học được từ dữ liệu thực tế
-    let score = 0;
-    if (f > d) score++;
-    if ('01234567'.includes(last)) score--;
-    if ('89abcdef'.includes(last)) score++;
-    if (f + d < 10) score -= 1; // cảnh báo nhiễu nếu dữ liệu lạ
-    return score;
-  }
-
-  function phanTich() {
-    let md5 = document.getElementById('md5input').value.trim();
-    if (!/^[a-f0-9]{32}$/.test(md5)) return alert('Mã MD5 không hợp lệ!');
-
-    let {f, d, last} = demFD(md5);
-    let score = duDoan({f, d, last});
-
-    let ketqua = score > 0 ? 'Tài' : score < 0 ? 'Xỉu' : 'Không chắc ⚠️';
-    document.getElementById('ketqua').innerHTML = `→ Dự đoán: <b>${ketqua}</b>`;
-    document.getElementById('canhbao').innerText = (score === 0 ? '⚠️ Không chắc chắn!' : '');
-  }
-
-  function luuKetQua() {
-    let md5 = document.getElementById('md5input').value.trim();
-    let radios = document.getElementsByName('correct');
-    let result = '';
-    for (let r of radios) if (r.checked) result = r.value;
-    if (!md5 || !result) return alert('Vui lòng nhập MD5 và chọn kết quả đúng.');
-
-    data.push({ md5, result });
-    localStorage.setItem('data_md5', JSON.stringify(data));
-    hienThiDuLieu();
-    alert('Đã lưu kết quả!');
-  }
-
-  function hienThiDuLieu() {
-    let html = '';
-    for (let item of data.slice(-20).reverse()) {
-      html += `<li>${item.md5} → ${item.result}</li>`;
+    function extractFeatures(md5) {
+      const f = [...md5].filter(c => /[a-f]/i.test(c)).length;
+      const d = [...md5].filter(c => /[0-9]/.test(c)).length;
+      const last = md5[md5.length - 1] || "";
+      return { f, d, last };
     }
-    document.getElementById('dulieu').innerHTML = html;
-  }
 
-  window.onload = hienThiDuLieu;
-</script>
-</body>
+    function predict({ f, d, last }) {
+      let score = 0;
+      if (f > d) score += 1; else score -= 1;
+      if ("abcdef".includes(last)) score += 1; else score -= 1;
+      if (f % 2 === 0) score += 0.5; else score -= 0.5;
+
+      // EV estimation (Edward Thorp style)
+      const ev = (score > 0) ? 0.6 : (score < 0 ? 0.4 : 0.5);
+      return {
+        suggest: score > 0 ? "Tài" : score < 0 ? "Xỉu" : "Không chắc chắn",
+        warning: score === 0,
+        ev: ev
+      };
+    }
+
+    function analyze() {
+      const md5 = document.getElementById("md5").value.trim().toLowerCase();
+      if (!/^[a-f0-9]{32}$/.test(md5)) return alert("Mã MD5 không hợp lệ");
+
+      const features = extractFeatures(md5);
+      const { suggest, warning, ev } = predict(features);
+      document.getElementById("result").innerHTML = `Dự đoán: <b>${suggest}</b> ${warning ? '<span class="warning">⚠️</span>' : ''}`;
+      document.getElementById("evDisplay").innerText = `EV: ${(ev * 100).toFixed(1)}%`;
+
+      window.lastResult = { md5, features, suggest };
+    }
+
+    function confirmResult() {
+      const actual = document.getElementById("actual").value;
+      if (!window.lastResult || !actual) return alert("Vui lòng phân tích và chọn kết quả thực tế");
+      db.push({
+        md5: window.lastResult.md5,
+        ...window.lastResult.features,
+        suggest: window.lastResult.suggest,
+        actual: actual
+      });
+      localStorage.setItem("ktm_data", JSON.stringify(db));
+      updateHistory();
+      document.getElementById("actual").value = "";
+    }
+
+    function updateHistory() {
+      const html = db.slice(-10).reverse().map(r => {
+        const correct = r.suggest.toLowerCase() === r.actual;
+        return `${r.md5.slice(0, 8)}... | Dự đoán: <b>${r.suggest}</b> | Thực tế: <b>${r.actual}</b> ${correct ? '✅' : '❌'}`;
+      }).join("<br>");
+      document.getElementById("history").innerHTML = html;
+    }
+
+    updateHistory();
+  </script></body>
 </html>
-
-
----
-
-Kế hoạch nâng cấp tiếp theo:
-
-✅ Giao diện to, rõ, dễ thao tác
-
-✅ Tự phân tích theo f, d, ký tự cuối
-
-✅ Gợi ý kết quả và cảnh báo khi không chắc
-
-✅ Lưu lại + học theo dữ liệu người dùng
-
-🔜 Sẽ nâng cấp thêm các chiến thuật cầu tay, khung giờ, thống kê dãy, quản lý vốn...
-
-
-Bạn có thể gửi thêm MD5 để cải thiện AI liên tục.
-
