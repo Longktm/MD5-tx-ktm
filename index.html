@@ -1,108 +1,92 @@
-<!DOCTYPE html>
-<html lang="vi">
+<!DOCTYPE html><html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>Phân Tích MD5 Tài Xỉu - Hacker Style</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hệ Thống Tài Xỉu Hacker</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      font-size: 24px;
-      background: #f4f4f4;
-    }
-    input, button, select {
-      font-size: 24px;
-      padding: 10px;
-      margin: 10px 0;
-      width: 100%;
-      box-sizing: border-box;
-    }
-    .result {
-      margin-top: 20px;
-      padding: 20px;
-      border-radius: 10px;
-      background: #fff;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
-    .warning {
-      color: red;
-      font-weight: bold;
-    }
-    label {
-      font-size: 24px;
-    }
+    body { font-family: Arial, sans-serif; background: #111; color: #fff; padding: 20px; }
+    h1 { font-size: 32px; color: #0f0; }
+    textarea, button, select, label { font-size: 20px; margin-top: 10px; }
+    textarea { width: 100%; height: 100px; }
+    button { padding: 10px 20px; margin: 5px; }
+    .result { margin-top: 20px; font-size: 24px; }
+    .alert { color: yellow; }
+    .feedback { margin-top: 10px; }
+    .history { margin-top: 30px; font-size: 16px; }
   </style>
 </head>
 <body>
-  <h1>Phân tích mã MD5 Tài Xỉu</h1>
-
-  <input type="text" id="md5input" placeholder="Dán mã MD5 vào đây">
+  <h1>PHÂN TÍCH TÀI XỈU - AI HACKER</h1>
+  <textarea id="md5Input" placeholder="Dán mã MD5 tại đây..."></textarea><br>
   <button onclick="analyze()">Phân tích</button>
+  <div class="result" id="result"></div>
+  <div class="feedback" id="feedback"></div>
+  <div class="history" id="history"></div>  <script>
+    let db = JSON.parse(localStorage.getItem('tx_db') || '[]');
 
-  <div class="result" id="resultBox" style="display:none;">
-    <p id="suggestion"></p>
-    <p>Chọn kết quả đúng:</p>
-    <label><input type="radio" name="trueResult" value="tài"> Tài</label>
-    <label><input type="radio" name="trueResult" value="xỉu"> Xỉu</label><br>
-    <button onclick="saveResult()">Lưu kết quả</button>
-  </div>
+    function extractFeatures(md5) {
+      let f = (md5.match(/[fF]/g) || []).length;
+      let d = (md5.match(/[dD]/g) || []).length;
+      let lastChar = md5.trim().slice(-1);
+      return { f, d, lastChar };
+    }
 
-  <script>
-    const storageKey = 'md5_data';
+    function getPrediction({ f, d, lastChar }) {
+      let score = 0;
+      if (f > d) score += 1;
+      if (d > f) score -= 1;
+      if (/[0-7a-f]/i.test(lastChar)) score += 1; else score -= 1;
+
+      let confidence = Math.min(Math.abs(score) / 3, 1);
+      let prediction = score >= 0 ? 'Tài' : 'Xỉu';
+      return { prediction, confidence };
+    }
+
+    function learn(md5, trueLabel) {
+      let f = extractFeatures(md5);
+      db.push({ md5, ...f, label: trueLabel });
+      localStorage.setItem('tx_db', JSON.stringify(db));
+    }
 
     function analyze() {
-      const md5 = document.getElementById('md5input').value.trim().toLowerCase();
-      if (!md5 || md5.length !== 32) {
-        alert("Mã MD5 không hợp lệ");
+      let md5 = document.getElementById('md5Input').value.trim();
+      if (md5.length !== 32) {
+        document.getElementById('result').innerHTML = '⚠️ Mã MD5 không hợp lệ';
         return;
       }
+      let features = extractFeatures(md5);
+      let { prediction, confidence } = getPrediction(features);
+      let warning = confidence < 0.7 ? '<span class="alert">⚠️ Không chắc chắn</span>' : '';
 
-      const f = (md5.match(/f/g) || []).length;
-      const d = (md5.match(/d/g) || []).length;
-      const lastChar = md5[md5.length - 1];
+      document.getElementById('result').innerHTML =
+        `👉 <b>Kết quả dự đoán:</b> ${prediction} (Độ tin cậy: ${(confidence * 100).toFixed(1)}%) ${warning}`;
 
-      let rawScore = f * 2 + d * 1;
-      let hint = rawScore % 10 >= 5 ? 'tài' : 'xỉu';
+      document.getElementById('feedback').innerHTML = `
+        <label>Sửa nếu sai:</label>
+        <input type="checkbox" id="fixTai"> Tài
+        <input type="checkbox" id="fixXiu"> Xỉu
+        <button onclick="saveResult('${md5}')">Lưu kết quả</button>
+      `;
 
-      // học từ dữ liệu
-      const data = JSON.parse(localStorage.getItem(storageKey) || '[]');
-      const learned = data.filter(e => e.f === f && e.d === d && e.last === lastChar);
-      let learnedResult = '';
-      if (learned.length > 0) {
-        const countT = learned.filter(e => e.result === 'tài').length;
-        const countX = learned.length - countT;
-        if (countT / learned.length >= 0.75) hint = 'tài';
-        else if (countX / learned.length >= 0.75) hint = 'xỉu';
-        else learnedResult = '⚠️ Không chắc chắn';
-      }
-
-      document.getElementById('resultBox').style.display = 'block';
-      document.getElementById('suggestion').innerHTML = `Gợi ý: <b>${hint.toUpperCase()}</b> ${learnedResult}`;
+      renderHistory();
     }
 
-    function saveResult() {
-      const md5 = document.getElementById('md5input').value.trim().toLowerCase();
-      const radios = document.getElementsByName('trueResult');
-      let selected = '';
-      for (const r of radios) {
-        if (r.checked) selected = r.value;
-      }
-      if (!selected) {
-        alert("Bạn chưa chọn kết quả đúng");
+    function saveResult(md5) {
+      let label = document.getElementById('fixTai').checked ? 'Tài' : (document.getElementById('fixXiu').checked ? 'Xỉu' : null);
+      if (!label) {
+        alert('Hãy chọn kết quả đúng là Tài hay Xỉu');
         return;
       }
-
-      const f = (md5.match(/f/g) || []).length;
-      const d = (md5.match(/d/g) || []).length;
-      const lastChar = md5[md5.length - 1];
-
-      const data = JSON.parse(localStorage.getItem(storageKey) || '[]');
-      data.push({ f, d, last: lastChar, result: selected });
-      localStorage.setItem(storageKey, JSON.stringify(data));
-      alert("Đã lưu kết quả. Hệ thống sẽ học từ dữ liệu này!");
-      document.getElementById('md5input').value = '';
-      document.getElementById('resultBox').style.display = 'none';
+      learn(md5, label);
+      analyze();
     }
-  </script>
-</body>
+
+    function renderHistory() {
+      let recent = db.slice(-10).reverse();
+      document.getElementById('history').innerHTML = '<b>Lịch sử gần đây:</b><br>' +
+        recent.map(e => `${e.md5} → ${e.label}`).join('<br>');
+    }
+
+    renderHistory();
+  </script></body>
 </html>
