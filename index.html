@@ -1,97 +1,101 @@
 <!DOCTYPE html><html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KTM Tool - Phân Tích MD5 Tài Xỉu</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KTM Tool - Hacker Tài Xỉu</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
+      background: black;
+      color: #00ff00;
+      font-family: monospace;
       padding: 20px;
-      background: #111;
-      color: #0f0;
       font-size: 20px;
     }
     input, button, select {
       font-size: 20px;
-      padding: 10px;
-      margin-top: 10px;
-    }
-    textarea {
-      width: 100%;
-      font-size: 18px;
-    }
-    .result {
-      font-weight: bold;
-      margin-top: 10px;
+      padding: 5px;
+      margin: 5px 0;
     }
     .warning {
       color: yellow;
     }
+    .result {
+      font-weight: bold;
+      font-size: 24px;
+    }
   </style>
 </head>
 <body>
-  <h1>KTM Tool - Hacker Tài Xỉu</h1>
-  <label for="md5">Nhập mã MD5:</label><br>
-  <input type="text" id="md5" style="width:100%"><br>  <div class="result" id="suggestion"></div><label>Kết quả đúng là:</label><br> <input type="radio" name="trueResult" value="tài"> Tài <input type="radio" name="trueResult" value="xỉu"> Xỉu <button onclick="trainAI()">Lưu và Học</button><br>
+  <h1>KTM Tool - Phân tích MD5 Tài Xỉu</h1>
+  <textarea id="md5input" rows="4" cols="70" placeholder="Dán mã MD5 vào đây..."></textarea><br>
+  <button onclick="phanTich()">Phân tích</button>
+  <div id="phanTichKetQua"></div>
+  <div class="result" id="goiY"></div>
+  <div id="evDisplay"></div>
+  <div>
+    <label>Kết quả đúng:</label>
+    <label><input type="radio" name="ketqua" value="Tài"> Tài</label>
+    <label><input type="radio" name="ketqua" value="Xỉu"> Xỉu</label>
+    <button onclick="luuKetQua()">Lưu và Học</button>
+  </div>
+  <script>
+    let weights = JSON.parse(localStorage.getItem("tx_weights") || '{"F":1,"D":-1,"Last":0}');function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
 
-  <textarea id="log" rows="10" readonly></textarea>  <script>
-    const weights = JSON.parse(localStorage.getItem('weights') || '{"f":0, "d":0, "last":0}');
-    const data = JSON.parse(localStorage.getItem('data') || '[]');
+function updateWeights(f, d, lastCharScore, result) {
+  const alpha = 0.1;
+  const direction = result === "Tài" ? 1 : -1;
 
-    function extractFeatures(md5) {
-      const f = (md5.match(/f/gi) || []).length;
-      const d = (md5.match(/d/gi) || []).length;
-      const lastChar = md5.trim().slice(-1);
-      const lastVal = isNaN(parseInt(lastChar, 16)) ? 0 : parseInt(lastChar, 16);
-      return { f, d, last: lastVal };
-    }
+  weights.F += alpha * direction * f;
+  weights.D += alpha * direction * d;
+  weights.Last += alpha * direction * lastCharScore;
 
-    function predict(md5) {
-      const { f, d, last } = extractFeatures(md5);
-      const score = f * weights.f + d * weights.d + last * weights.last;
-      const ev = Math.round(Math.abs(score) * 3 + 40); // thorp-like expected value
-      const result = score >= 0 ? 'xỉu' : 'tài';
-      const warning = ev < 55 ? ' ⚠️ Không chắc chắn!' : '';
-      document.getElementById('suggestion').innerHTML = `➡️ Gợi ý: <b>${result.toUpperCase()}</b> | EV: ${ev}%${warning}`;
-      return { f, d, last, result, ev };
-    }
+  weights.F = clamp(weights.F, -10, 10);
+  weights.D = clamp(weights.D, -10, 10);
+  weights.Last = clamp(weights.Last, -10, 10);
+}
 
-    document.getElementById('md5').addEventListener('input', (e) => {
-      const val = e.target.value.trim();
-      if (val.length >= 10) predict(val);
-    });
+let currentFeatures = {};
 
-    function trainAI() {
-      const md5 = document.getElementById('md5').value.trim();
-      const radios = document.getElementsByName('trueResult');
-      let actual = '';
-      for (const r of radios) if (r.checked) actual = r.value;
-      if (!md5 || !actual) return alert('Vui lòng nhập MD5 và chọn kết quả đúng.');
-      const { f, d, last } = extractFeatures(md5);
-      data.push({ f, d, last, actual });
+function phanTich() {
+  const md5 = document.getElementById("md5input").value.trim();
+  if (md5.length !== 32) {
+    alert("MD5 phải đủ 32 ký tự.");
+    return;
+  }
+  const f = (md5.match(/f/gi) || []).length;
+  const d = (md5.match(/d/gi) || []).length;
+  const lastChar = md5[md5.length - 1];
+  const lastCharCode = lastChar.charCodeAt(0);
+  const lastCharScore = /[0-9]/.test(lastChar) ? parseInt(lastChar) : lastCharCode % 10;
 
-      // Logistic-style training: cập nhật trọng số dựa trên hướng sai lệch
-      const newWeights = { f: weights.f, d: weights.d, last: weights.last };
-      const lr = 0.02;
-      for (const { f, d, last, actual } of data) {
-        const target = actual === 'xỉu' ? 1 : -1;
-        const pred = f * weights.f + d * weights.d + last * weights.last;
-        const error = target - pred;
-        newWeights.f += lr * error * f;
-        newWeights.d += lr * error * d;
-        newWeights.last += lr * error * last;
-      }
-      weights.f = newWeights.f;
-      weights.d = newWeights.d;
-      weights.last = newWeights.last;
+  const rawScore = f * weights.F + d * weights.D + lastCharScore * weights.Last;
+  const normalized = Math.tanh(rawScore);
+  const ev = (normalized * 50 + 50).toFixed(2);
 
-      localStorage.setItem('weights', JSON.stringify(weights));
-      localStorage.setItem('data', JSON.stringify(data));
-      document.getElementById('log').value = `Đã học từ ${data.length} mẫu.\nTrọng số hiện tại:\nF: ${weights.f.toFixed(2)} | D: ${weights.d.toFixed(2)} | Last: ${weights.last.toFixed(2)}`;
-      predict(md5);
-    }
+  const goiY = normalized > 0.1 ? "Tài" : normalized < -0.1 ? "Xỉu" : "Không chắc chắn";
 
-    // Hiển thị thông tin lúc đầu
-    document.getElementById('log').value = `Trọng số hiện tại:\nF: ${weights.f.toFixed(2)} | D: ${weights.d.toFixed(2)} | Last: ${weights.last.toFixed(2)}\nĐã học ${data.length} lượt.`;
-  </script></body>
+  document.getElementById("phanTichKetQua").innerText = `F = ${f}, D = ${d}, Cuối = '${lastChar}' (${lastCharScore})`;
+  document.getElementById("goiY").innerText = `Gợi ý: ${goiY}`;
+  document.getElementById("evDisplay").innerText = `EV: ${ev}%`;
+
+  currentFeatures = { f, d, lastCharScore };
+}
+
+function luuKetQua() {
+  const radios = document.getElementsByName("ketqua");
+  let kq = null;
+  for (let r of radios) if (r.checked) kq = r.value;
+  if (!kq || !currentFeatures.f) {
+    alert("Phân tích trước rồi chọn kết quả đúng.");
+    return;
+  }
+  updateWeights(currentFeatures.f, currentFeatures.d, currentFeatures.lastCharScore, kq);
+  localStorage.setItem("tx_weights", JSON.stringify(weights));
+  alert("Đã học xong. Trọng số cập nhật.");
+}
+
+  </script>
+</body>
 </html>
